@@ -1,0 +1,78 @@
+package emailtemplate
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+)
+
+// EmailTemplateHandler represents an email template handler.
+type EmailTemplateHandler struct {
+	// You can add fields here to manage template data or configuration
+}
+
+// NewEmailTemplateHandler creates a new instance of EmailTemplateHandler.
+func NewEmailTemplateHandler() *EmailTemplateHandler {
+	return &EmailTemplateHandler{}
+}
+
+// GetDefaultTemplate returns the default email template as a string.
+func (eth *EmailTemplateHandler) GetDefaultTemplate() string {
+	return `Dear {{Name}},
+
+Thank you for your recent transaction with us. Here is the summary of your transactions:
+
+Total balance is {{TotalBalance}}
+{{Transactions}}
+
+Regards,
+Stori`
+}
+
+// GenerateSummaryContent generates the summary content for the email.
+func (eth *EmailTemplateHandler) GenerateSummaryContent(totalBalance float64, transactionsByMonth map[string]int, averageCreditByMonth, averageDebitByMonth map[string]float64) string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("Total balance is %.2f\n", totalBalance))
+	for month, count := range transactionsByMonth {
+		sb.WriteString(fmt.Sprintf("Number of transactions in %s: %d\n", month, count))
+		sb.WriteString(fmt.Sprintf("Average credit amount in %s: %.2f\n", month, averageCreditByMonth[month]))
+		sb.WriteString(fmt.Sprintf("Average debit amount in %s: %.2f\n", month, averageDebitByMonth[month]))
+	}
+	return sb.String()
+}
+
+// GenerateAndSaveEmail generates an email using a specified template and saves it as a file.
+func (eth *EmailTemplateHandler) GenerateAndSaveEmail(template string, params map[string]string, outputDir string) error {
+	completedEmail := eth.populateTemplate(template, params)
+
+	emailFileName := fmt.Sprintf("email_%d.txt", time.Now().UnixNano())
+	emailFilePath := filepath.Join(outputDir, emailFileName)
+
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		return fmt.Errorf("error creating output directory: %v", err)
+	}
+
+	if err := os.WriteFile(emailFilePath, []byte(completedEmail), 0644); err != nil {
+		return fmt.Errorf("error writing email file: %v", err)
+	}
+
+	return nil
+}
+
+func (eth *EmailTemplateHandler) populateTemplate(template string, params map[string]string) string {
+	completedEmail := template
+
+	var sb strings.Builder
+	for month, count := range params["transactionsByMonth"] {
+		sb.WriteString(fmt.Sprintf("Number of transactions in %s: %d\n", fmt.Sprint(month), count))
+	}
+	params["Transactions"] = sb.String()
+
+	for key, value := range params {
+		placeholder := fmt.Sprintf("{{%s}}", key)
+		completedEmail = strings.ReplaceAll(completedEmail, placeholder, value)
+	}
+	return completedEmail
+}

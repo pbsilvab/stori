@@ -1,24 +1,26 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
-	"os"
-
 	"stori-challenge/internal/account"
 	"stori-challenge/internal/emailtemplate"
 	"stori-challenge/internal/fileprocessor"
+
+	"github.com/aws/aws-lambda-go/lambda"
 )
 
-func main() {
-	if len(os.Args) < 3 {
-		fmt.Println("Usage: main <account_id> <name> <directory>")
-		os.Exit(1)
-	}
+type ProcessTxs struct {
+	Directory string `json:"directory"`
+	Account   string `json:"account"`
+	Name      string `json:"name"`
+}
 
-	accountID := os.Args[1]
-	name := os.Args[2]
-	directory := os.Args[3]
+func ProcessTxsRequest(ctx context.Context, event ProcessTxs) (string, error) {
+	accountID := event.Account
+	name := event.Name
+	directory := event.Directory
 
 	fp := fileprocessor.NewFileProcessor(directory)
 
@@ -58,5 +60,9 @@ func main() {
 		log.Fatalf("Error generating and saving email: %v", err)
 	}
 
-	fmt.Println("Email generated and saved successfully.")
+	return "done", nil
+}
+
+func main() {
+	lambda.Start(ProcessTxsRequest)
 }

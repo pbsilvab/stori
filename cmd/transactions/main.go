@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -11,6 +12,8 @@ import (
 	"stori-challenge/internal/emailtemplate"
 	"stori-challenge/internal/fileprocessor"
 
+	"github.com/aws/aws-lambda-go/lambda"
+
 	"github.com/joho/godotenv"
 )
 
@@ -20,10 +23,16 @@ const (
 	CLI    = "cli"
 )
 
+type ProcessTxsLmbda struct {
+	Directory string `json:"directory"`
+	Account   string `json:"account"`
+	Name      string `json:"name"`
+}
+
 type TransactionParamsRequest struct {
-	AccountID string
-	Name      string
-	Directory string
+	AccountID string `json:"account"`
+	Name      string `json:"name"`
+	Directory string `json:"directory"`
 }
 
 func main() {
@@ -35,9 +44,25 @@ func main() {
 		serveHttpApplication()
 	case CLI:
 		cliHandler()
+	case LAMBDA:
+		lambda.Start(ProcessTxsLambda)
 	default:
 		log.Fatal("No runtime defined")
 	}
+}
+
+func ProcessTxsLambda(ctx context.Context, event ProcessTxsLmbda) (string, error) {
+	accountID := event.Account
+	name := event.Name
+	directory := event.Directory
+
+	err := processAccountTx(accountID, name, directory)
+
+	if err != nil {
+		return "", fmt.Errorf("error: %v", err.Error())
+	}
+
+	return "done", nil
 }
 
 func cliHandler() {

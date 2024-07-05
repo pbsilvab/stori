@@ -2,6 +2,25 @@
 Technical Challenge for Stori
 
 
+## AWS
+create a aws accoun or configure your credentials in env variables
+
+if runnin local, make sure to Configure CLI AWS Account Credentials ~/aws/creds
+
+if runing prod, load env vars with
+
+AWS_ACCOUNT_KEY
+AWS_ACCOUNT_SECRET
+AWS_REGION
+
+
+## Configure DynamoDB at aws
+
+Configura a DynamoDB table called 
+
+"transactions"
+
+
 ## Deploy Account Txs App into Lambda
 
 Configure CLI AWS Account Credentials 
@@ -32,3 +51,10 @@ aws lambda create-function --function-name process-account-tx \
 
 
 <!-- --file-system-configs Arn=arn:aws:elasticfilesystem:YOUR_REGION:YOUR_ACCOUNT_ID:access-point/your-efs-access-point,LocalMountPath=/mnt/efs -->
+
+
+## Docker Build - Docker Compose run 
+
+change the example.docker-compose.yml to docker-compose.yml
+
+Complete all the missing ENV variables for the app service

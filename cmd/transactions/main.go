@@ -30,7 +30,7 @@ type ProcessTxsLmbda struct {
 }
 
 type TransactionParamsRequest struct {
-	AccountID string `json:"account"`
+	AccountID string `json:"accountId"`
 	Name      string `json:"name"`
 	Directory string `json:"directory"`
 }
@@ -94,6 +94,7 @@ func serveHttpApplication() {
 }
 
 func httpHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("POST")
 	if r.Method != http.MethodPost {
 		http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
 		return
@@ -156,7 +157,7 @@ func processAccountTx(accountID string, name string, directory string) error {
 	fmt.Printf("Account ID: %s\n", acc.ID)
 	fmt.Printf("Balance: %.2f\n", totalBalance)
 
-	//TODO: if saving is ok! Defer delete file
+	//TODO: if saving is ok! Defer delete file, or store backup to s3
 	acc.SaveTransactions()
 
 	eth := emailtemplate.NewEmailTemplateHandler()

@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - RUNTIME=http
+      - REPOSITORY_TYPE=dynamo
+      - AWS_REGION=
+      - AWS_ACCESS_KEY_ID= 
+      - AWS_SECRET_ACCESS_KEY=
+    volumes:
+    command: ["./main"]
+
+networks:
+  default:
+    external:
+      name: stori

@@ -7,24 +7,26 @@ import (
 	"time"
 )
 
-// Transaction represents a financial transaction.
-type Transaction struct {
-	ID     string
-	Date   time.Time
-	Amount float64
-}
-
 // Account represents an account with transactions.
 type Account struct {
 	ID           string
 	Transactions []Transaction
+	repository   AccountRepository
 }
 
 // NewAccount creates a new account.
-func NewAccount(id string, transactions []Transaction) *Account {
+func NewAccount(id string, transactions []Transaction, repository AccountRepository) *Account {
 	return &Account{
 		ID:           id,
 		Transactions: transactions,
+		repository:   repository,
+	}
+}
+
+func (a *Account) SaveTransactions() {
+	for _, transaction := range a.Transactions {
+		transaction.Account = a.ID
+		a.repository.SaveTransaction(transaction)
 	}
 }
 
@@ -68,7 +70,7 @@ func ParseTransaction(record []string) (Transaction, error) {
 	amount, err := strconv.ParseFloat(record[2], 64)
 	if err != nil {
 		if strings.HasPrefix(record[2], "+") {
-			amount, err = strconv.ParseFloat(record[2][1:], 64)
+			amount, _ = strconv.ParseFloat(record[2][1:], 64)
 		} else {
 			return Transaction{}, fmt.Errorf("invalid amount format: %v", err)
 		}

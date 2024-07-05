@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 
 	"stori-challenge/internal/account"
@@ -12,23 +14,98 @@ import (
 	"github.com/joho/godotenv"
 )
 
+const (
+	LAMBDA = "lambda"
+	HTTP   = "http"
+	CLI    = "cli"
+)
+
+type TransactionParamsRequest struct {
+	AccountID string
+	Name      string
+	Directory string
+}
+
 func main() {
 	godotenv.Load()
+	runtime := os.Getenv("RUNTIME")
 
+	switch runtime {
+	case HTTP:
+		serveHttpApplication()
+	case CLI:
+		cliHandler()
+	default:
+		log.Fatal("No runtime defined")
+	}
+}
+
+func cliHandler() {
 	if len(os.Args) < 3 {
 		fmt.Println("Usage: main <account_id> <name> <directory>")
 		os.Exit(1)
 	}
-
 	accountID := os.Args[1]
 	name := os.Args[2]
 	directory := os.Args[3]
+
+	err := processAccountTx(accountID, name, directory)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func serveHttpApplication() {
+	http.HandleFunc("/process", httpHandler)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	log.Printf("Starting server on port %s", port)
+	if err := http.ListenAndServe(":"+port, nil); err != nil {
+		log.Fatalf("Failed to start server: %v", err)
+	}
+}
+
+func httpHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var p TransactionParamsRequest
+	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+		http.Error(w, "error decoding request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if p.Directory == "" || p.AccountID == "" || p.Name == "" {
+		http.Error(w, "directory, name and account_id are required", http.StatusBadRequest)
+		return
+	}
+
+	err := processAccountTx(p.AccountID, p.Name, p.Directory)
+
+	if err != nil {
+		http.Error(w, "error decoding request body: "+err.Error(), 400)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "ok",
+	})
+}
+
+func processAccountTx(accountID string, name string, directory string) error {
 
 	fp := fileprocessor.NewFileProcessor(directory)
 
 	records, err := fp.GetLatestCSVFile()
 	if err != nil {
-		log.Fatalf("Error getting latest CSV file: %v", err)
+		return fmt.Errorf("error: %v ", err)
 	}
 
 	var transactions []account.Transaction
@@ -45,7 +122,7 @@ func main() {
 	r, err := account.NewAccountRepository(repoType)
 
 	if err != nil {
-		log.Fatalf("Error getting latest CSV file: %v", err)
+		return fmt.Errorf("error getting latest CSV file: %v", err)
 	}
 
 	acc := account.NewAccount(accountID, transactions, r)
@@ -66,8 +143,10 @@ func main() {
 	}
 
 	if err := eth.GenerateAndSaveEmail(template, params, "tmp/emails"); err != nil {
-		log.Fatalf("Error generating and saving email: %v", err)
+		return fmt.Errorf("error generating and saving email: %v", err)
 	}
 
 	fmt.Println("Email generated and saved successfully.")
+
+	return nil
 }

@@ -1,0 +1,4 @@
+.env
+tmp
+txs
+docker-compose.yml

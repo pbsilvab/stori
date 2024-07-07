@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - RUNTIME=http
+      - REPOSITORY_TYPE=dynamo
+      - EMAIL_STORAGE_HANDLER_TYPE=sqs
+      - EMAIL_FS_OUTPUT_DIR=tmp/emails
+      - AWS_REGION=
+      - AWS_ACCESS_KEY_ID=
+      - AWS_SECRET_ACCESS_KEY=
+      - SQS_REGION=
+      - SQS_URL=
+    volumes:
+      - ./tmp/transactions:/tmp/transactions
+    command: ["./txs"]
+    networks:
+      - appnetwork
+  accounts:
+    build:
+      context: .
+      dockerfile: accountInfo.Dockerfile  
+    ports:
+      - "8081:8081"
+    environment:
+      - ACCOUNT_INFO_PORT=8081
+      - RUNTIME=http
+      - REPOSITORY_TYPE=dynamo
+      - AWS_REGION=
+      - AWS_ACCESS_KEY_ID=
+      - AWS_SECRET_ACCESS_KEY=
+    command: ["./accountinfo"]
+    networks:
+      - appnetwork
+  emailsender:
+    build:
+      context: .
+      dockerfile: emailsender.Dockerfile  
+    restart: always
+    environment:
+      - EMAIL_STORAGE_HANDLER_TYPE=sqs
+      - EMAIL_FS_OUTPUT_DIR=tmp/emails
+      - AWS_REGION
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - SQS_REGION
+      - SQS_URL
+      - AWS_SES_SENDER_EMAIL
+    volumes:
+      - ./tmp/:/tmp/
+    command: ["./emailsender"]
+    networks:
+      - appnetwork
+networks:
+  appnetwork:
+    driver: bridge

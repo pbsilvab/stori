@@ -2,20 +2,20 @@ package emailtemplate
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
-	"time"
 )
 
 // EmailTemplateHandler represents an email template handler.
 type EmailTemplateHandler struct {
+	storeEmailSvc EmailTemplateStorage
 	// You can add fields here to manage template data or configuration
 }
 
 // NewEmailTemplateHandler creates a new instance of EmailTemplateHandler.
-func NewEmailTemplateHandler() *EmailTemplateHandler {
-	return &EmailTemplateHandler{}
+func NewEmailTemplateHandler(svc EmailTemplateStorage) *EmailTemplateHandler {
+	return &EmailTemplateHandler{
+		storeEmailSvc: svc,
+	}
 }
 
 // GetDefaultTemplate returns the default email template as a string.
@@ -31,7 +31,6 @@ Regards,
 Stori`
 }
 
-// GenerateSummaryContent generates the summary content for the email.
 func (eth *EmailTemplateHandler) GenerateSummaryContent(totalBalance float64, transactionsByMonth map[string]int, averageCreditByMonth, averageDebitByMonth map[string]float64) string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("Total balance is %.2f\n", totalBalance))
@@ -43,19 +42,13 @@ func (eth *EmailTemplateHandler) GenerateSummaryContent(totalBalance float64, tr
 	return sb.String()
 }
 
-// GenerateAndSaveEmail generates an email using a specified template and saves it as a file.
 func (eth *EmailTemplateHandler) GenerateAndSaveEmail(template string, params map[string]string, outputDir string) error {
 	completedEmail := eth.populateTemplate(template, params)
 
-	emailFileName := fmt.Sprintf("email_%d.txt", time.Now().UnixNano())
-	emailFilePath := filepath.Join(outputDir, emailFileName)
+	err := eth.storeEmailSvc.StoreEmail(completedEmail, params["Email"])
 
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		return fmt.Errorf("error creating output directory: %v", err)
-	}
-
-	if err := os.WriteFile(emailFilePath, []byte(completedEmail), 0644); err != nil {
-		return fmt.Errorf("error writing email file: %v", err)
+	if err != nil {
+		return fmt.Errorf("error writing email file: %v", err.Error())
 	}
 
 	return nil

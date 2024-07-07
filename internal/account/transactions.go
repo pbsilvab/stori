@@ -8,30 +8,30 @@ import (
 )
 
 // Account represents an account with transactions.
-type Account struct {
+type AccountTx struct {
 	ID           string
 	Transactions []Transaction
-	repository   AccountRepository
+	accTx        AccountTxRepository
 }
 
 // NewAccount creates a new account.
-func NewAccount(id string, transactions []Transaction, repository AccountRepository) *Account {
-	return &Account{
+func NewAccountTransactions(id string, transactions []Transaction, acctx AccountTxRepository) *AccountTx {
+	return &AccountTx{
 		ID:           id,
 		Transactions: transactions,
-		repository:   repository,
+		accTx:        acctx,
 	}
 }
 
-func (a *Account) SaveTransactions() {
+func (a *AccountTx) SaveTransactions() {
 	for _, transaction := range a.Transactions {
 		transaction.Account = a.ID
-		a.repository.SaveTransaction(transaction)
+		a.accTx.SaveTransaction(transaction)
 	}
 }
 
 // CalculateSummary calculates the summary for the account.
-func (a *Account) CalculateSummary() (float64, map[string]int, map[string]float64, map[string]float64) {
+func (a *AccountTx) CalculateSummary() (float64, map[string]int, map[string]float64, map[string]float64) {
 	totalBalance := 0.0
 	transactionsByMonth := make(map[string]int)
 	totalCreditByMonth := make(map[string]float64)

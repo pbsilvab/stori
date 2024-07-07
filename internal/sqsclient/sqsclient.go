@@ -1,7 +1,6 @@
 package sqsclient
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -13,12 +12,6 @@ import (
 type SQSClient struct {
 	svc      *sqs.SQS
 	queueURL string
-}
-
-// EmailMessage represents the structure of the email message
-type EmailMessage struct {
-	Template string `json:"template"`
-	Email    string `json:"email"`
 }
 
 // New creates a new SQS client
@@ -34,19 +27,9 @@ func New(region, queueURL string) (*SQSClient, error) {
 	return &SQSClient{svc: svc, queueURL: queueURL}, nil
 }
 
-// PushEmailMessage sends an email message to the SQS queue
-func (c *SQSClient) PushEmailMessage(emailTemplate, email string) error {
-	emailMessage := EmailMessage{
-		Template: emailTemplate,
-		Email:    email,
-	}
-
-	messageBody, err := json.Marshal(emailMessage)
-	if err != nil {
-		return fmt.Errorf("failed to marshal email message: %w", err)
-	}
-
-	_, err = c.svc.SendMessage(&sqs.SendMessageInput{
+// PushlMessage sends an email message to the SQS queue
+func (c *SQSClient) PushMessage(messageBody []byte) error {
+	_, err := c.svc.SendMessage(&sqs.SendMessageInput{
 		QueueUrl:    aws.String(c.queueURL),
 		MessageBody: aws.String(string(messageBody)),
 	})

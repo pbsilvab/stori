@@ -5,6 +5,72 @@ import (
 	"strings"
 )
 
+const summaryTemplate = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Template</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #003A40;
+            font-family: Arial, sans-serif;
+            color: #ffffff;
+        }
+        .container {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            color: #000000;
+        }
+        .banner {
+            width: 100%;
+            background-color: #003A40;
+            text-align: center;
+            padding: 20px 0;
+        }
+        .banner img {
+            max-width: 100%;
+            height: auto;
+        }
+        .content {
+            padding: 20px;
+        }
+        .content p {
+            font-size: 16px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="banner">
+            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTqgUzyqW16XTfgqiucKIak04aDMWel1rG8P0NFdhpylnjlKdt-K351AA1M6XS9EFqxg8k&usqp=CAU">
+        </div>
+        <div class="content">
+            <p>
+				Dear {{Name}},
+			</p>
+			<p>
+				Thank you for your recent transaction with us. Here is the summary of your transactions:
+			</p>
+			<p>
+				Total balance is {{TotalBalance}}
+			</p>
+				
+				{{Transactions}}
+
+				Regards,
+				Stori
+			</p>
+        </div>
+    </div>
+</body>
+</html>`
+
 // EmailTemplateHandler represents an email template handler.
 type EmailTemplateHandler struct {
 	storeEmailSvc EmailTemplateStorage
@@ -20,15 +86,16 @@ func NewEmailTemplateHandler(svc EmailTemplateStorage) *EmailTemplateHandler {
 
 // GetDefaultTemplate returns the default email template as a string.
 func (eth *EmailTemplateHandler) GetDefaultTemplate() string {
-	return `Dear {{Name}},
+	return summaryTemplate
+	// 	return `Dear {{Name}},
 
-Thank you for your recent transaction with us. Here is the summary of your transactions:
+	// Thank you for your recent transaction with us. Here is the summary of your transactions:
 
-Total balance is {{TotalBalance}}
-{{Transactions}}
+	// Total balance is {{TotalBalance}}
+	// {{Transactions}}
 
-Regards,
-Stori`
+	// Regards,
+	// Stori`
 }
 
 func (eth *EmailTemplateHandler) GenerateSummaryContent(totalBalance float64, transactionsByMonth map[string]int, averageCreditByMonth, averageDebitByMonth map[string]float64) string {

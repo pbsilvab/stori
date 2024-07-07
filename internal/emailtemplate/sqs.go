@@ -1,6 +1,7 @@
 package emailtemplate
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"stori-challenge/internal/sqsclient"
@@ -8,6 +9,11 @@ import (
 
 type SqsStoreEmailHandler struct {
 	sqscli *sqsclient.SQSClient
+}
+
+type EmailMessage struct {
+	Template string `json:"template"`
+	Email    string `json:"email"`
 }
 
 func NewSQSEmailHandler(region string, sqsUrl string) (*SqsStoreEmailHandler, error) {
@@ -21,4 +27,21 @@ func NewSQSEmailHandler(region string, sqsUrl string) (*SqsStoreEmailHandler, er
 	return &SqsStoreEmailHandler{
 		sqscli: sqscli,
 	}, nil
+}
+
+func (svc SqsStoreEmailHandler) StoreEmail(completedEmail string, email string) error {
+
+	emailMessage := EmailMessage{
+		Template: completedEmail,
+		Email:    email,
+	}
+
+	messageBody, err := json.Marshal(emailMessage)
+
+	if err != nil {
+		return fmt.Errorf("failed to marshal email message: %w", err)
+	}
+	err = svc.sqscli.PushMessage(messageBody)
+
+	return err
 }

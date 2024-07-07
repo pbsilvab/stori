@@ -2,36 +2,102 @@ package emailtemplate
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
-	"time"
 )
+
+const summaryTemplate = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Template</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #003A40;
+            font-family: Arial, sans-serif;
+            color: #ffffff;
+        }
+        .container {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            color: #000000;
+        }
+        .banner {
+            width: 100%;
+            background-color: #003A40;
+            text-align: center;
+            padding: 20px 0;
+        }
+        .banner img {
+            max-width: 100%;
+            height: auto;
+        }
+        .content {
+            padding: 20px;
+        }
+        .content p {
+            font-size: 16px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="banner">
+            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTqgUzyqW16XTfgqiucKIak04aDMWel1rG8P0NFdhpylnjlKdt-K351AA1M6XS9EFqxg8k&usqp=CAU">
+        </div>
+        <div class="content">
+            <p>
+				Dear {{Name}},
+			</p>
+			<p>
+				Thank you for your recent transaction with us. Here is the summary of your transactions:
+			</p>
+			<p>
+				Total balance is {{TotalBalance}}
+			</p>
+				
+				{{Transactions}}
+
+				Regards,
+				Stori
+			</p>
+        </div>
+    </div>
+</body>
+</html>`
 
 // EmailTemplateHandler represents an email template handler.
 type EmailTemplateHandler struct {
+	storeEmailSvc EmailTemplateStorage
 	// You can add fields here to manage template data or configuration
 }
 
 // NewEmailTemplateHandler creates a new instance of EmailTemplateHandler.
-func NewEmailTemplateHandler() *EmailTemplateHandler {
-	return &EmailTemplateHandler{}
+func NewEmailTemplateHandler(svc EmailTemplateStorage) *EmailTemplateHandler {
+	return &EmailTemplateHandler{
+		storeEmailSvc: svc,
+	}
 }
 
 // GetDefaultTemplate returns the default email template as a string.
 func (eth *EmailTemplateHandler) GetDefaultTemplate() string {
-	return `Dear {{Name}},
+	return summaryTemplate
+	// 	return `Dear {{Name}},
 
-Thank you for your recent transaction with us. Here is the summary of your transactions:
+	// Thank you for your recent transaction with us. Here is the summary of your transactions:
 
-Total balance is {{TotalBalance}}
-{{Transactions}}
+	// Total balance is {{TotalBalance}}
+	// {{Transactions}}
 
-Regards,
-Stori`
+	// Regards,
+	// Stori`
 }
 
-// GenerateSummaryContent generates the summary content for the email.
 func (eth *EmailTemplateHandler) GenerateSummaryContent(totalBalance float64, transactionsByMonth map[string]int, averageCreditByMonth, averageDebitByMonth map[string]float64) string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("Total balance is %.2f\n", totalBalance))
@@ -43,19 +109,13 @@ func (eth *EmailTemplateHandler) GenerateSummaryContent(totalBalance float64, tr
 	return sb.String()
 }
 
-// GenerateAndSaveEmail generates an email using a specified template and saves it as a file.
 func (eth *EmailTemplateHandler) GenerateAndSaveEmail(template string, params map[string]string, outputDir string) error {
 	completedEmail := eth.populateTemplate(template, params)
 
-	emailFileName := fmt.Sprintf("email_%d.txt", time.Now().UnixNano())
-	emailFilePath := filepath.Join(outputDir, emailFileName)
+	err := eth.storeEmailSvc.StoreEmail(completedEmail, params["Email"])
 
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		return fmt.Errorf("error creating output directory: %v", err)
-	}
-
-	if err := os.WriteFile(emailFilePath, []byte(completedEmail), 0644); err != nil {
-		return fmt.Errorf("error writing email file: %v", err)
+	if err != nil {
+		return fmt.Errorf("error writing email file: %v", err.Error())
 	}
 
 	return nil

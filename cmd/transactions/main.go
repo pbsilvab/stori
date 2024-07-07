@@ -23,22 +23,50 @@ const (
 	CLI    = "cli"
 )
 
+var acctxr account.AccountTxRepository
+var accinf account.AccountInfoRepository
+var eth *emailtemplate.EmailTemplateHandler
+
 type ProcessTxsLmbda struct {
 	Directory string `json:"directory"`
 	Account   string `json:"account"`
-	Name      string `json:"name"`
 }
 
 type TransactionParamsRequest struct {
 	AccountID string `json:"accountId"`
-	Name      string `json:"name"`
 	Directory string `json:"directory"`
 }
 
 func main() {
 	godotenv.Load()
 	runtime := os.Getenv("RUNTIME")
+	var err error
 
+	//Package Definitions
+
+	repoType := os.Getenv("REPOSITORY_TYPE")
+	// Account Transacctions Repository Definition
+	acctxr, err = account.NewAccountTxRepository(repoType)
+	if err != nil {
+		log.Fatalf("error getting latest CSV file: %v", err)
+	}
+
+	// Account Information Repository Definition
+	accinf, err = account.NewAccountInfoRepository(repoType)
+	if err != nil {
+		log.Fatalf("error creating account repository: %v", err)
+	}
+
+	// Email Storage Definition
+	emailStorageHandler := os.Getenv("EMAIL_STORAGE_HANDLER_TYPE")
+	esh, err := emailtemplate.NewStoreHandler(emailStorageHandler)
+	if err != nil {
+		log.Fatalf("error generating and saving email: %v", err.Error())
+	}
+	// Email Template Builder
+	eth = emailtemplate.NewEmailTemplateHandler(esh)
+
+	// Configure Runtime
 	switch runtime {
 	case HTTP:
 		serveHttpApplication()
@@ -53,10 +81,9 @@ func main() {
 
 func ProcessTxsLambda(ctx context.Context, event ProcessTxsLmbda) (string, error) {
 	accountID := event.Account
-	name := event.Name
 	directory := event.Directory
 
-	err := processAccountTx(accountID, name, directory)
+	err := processAccountTx(accountID, directory)
 
 	if err != nil {
 		return "", fmt.Errorf("error: %v", err.Error())
@@ -66,15 +93,14 @@ func ProcessTxsLambda(ctx context.Context, event ProcessTxsLmbda) (string, error
 }
 
 func cliHandler() {
-	if len(os.Args) < 3 {
-		fmt.Println("Usage: main <account_id> <name> <directory>")
+	if len(os.Args) < 2 {
+		fmt.Println("Usage: main <account_id> <directory>")
 		os.Exit(1)
 	}
 	accountID := os.Args[1]
-	name := os.Args[2]
-	directory := os.Args[3]
+	directory := os.Args[2]
 
-	err := processAccountTx(accountID, name, directory)
+	err := processAccountTx(accountID, directory)
 
 	if err != nil {
 		log.Fatal(err)
@@ -106,12 +132,12 @@ func httpHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if p.Directory == "" || p.AccountID == "" || p.Name == "" {
+	if p.Directory == "" || p.AccountID == "" {
 		http.Error(w, "directory, name and account_id are required", http.StatusBadRequest)
 		return
 	}
 
-	err := processAccountTx(p.AccountID, p.Name, p.Directory)
+	err := processAccountTx(p.AccountID, p.Directory)
 
 	if err != nil {
 		http.Error(w, "error decoding request body: "+err.Error(), 400)
@@ -125,7 +151,7 @@ func httpHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func processAccountTx(accountID string, name string, directory string) error {
+func processAccountTx(accountID string, directory string) error {
 
 	fp := fileprocessor.NewFileProcessor(directory)
 
@@ -144,14 +170,13 @@ func processAccountTx(accountID string, name string, directory string) error {
 		transactions = append(transactions, transaction)
 	}
 
-	repoType := os.Getenv("REPOSITORY_TYPE")
-	r, err := account.NewAccountRepository(repoType)
+	accountInfo, err := accinf.FindAccountInfo(accountID)
 
 	if err != nil {
-		return fmt.Errorf("error getting latest CSV file: %v", err)
+		return fmt.Errorf("error find account info: %v", err)
 	}
 
-	acc := account.NewAccount(accountID, transactions, r)
+	acc := account.NewAccountTransactions(accountID, transactions, acctxr)
 	totalBalance, transactionsByMonth, averageCreditByMonth, averageDebitByMonth := acc.CalculateSummary()
 
 	fmt.Printf("Account ID: %s\n", acc.ID)
@@ -160,11 +185,11 @@ func processAccountTx(accountID string, name string, directory string) error {
 	//TODO: if saving is ok! Defer delete file, or store backup to s3
 	acc.SaveTransactions()
 
-	eth := emailtemplate.NewEmailTemplateHandler()
 	summaryContent := eth.GenerateSummaryContent(totalBalance, transactionsByMonth, averageCreditByMonth, averageDebitByMonth)
 	template := eth.GetDefaultTemplate()
 	params := map[string]string{
-		"Name":         name,
+		"Email":        accountInfo.Email,
+		"Name":         accountInfo.Name,
 		"TotalBalance": summaryContent,
 	}
 
